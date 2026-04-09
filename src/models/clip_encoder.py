@@ -100,11 +100,13 @@ class CLIPEncoder(nn.Module):
             head_dim = embed_dim // num_heads
 
             # packed QKV weight: [3*embed_dim, embed_dim]
-            W_q = module.in_proj_weight[:embed_dim]
-            W_k = module.in_proj_weight[embed_dim:2 * embed_dim]
-            b_q = module.in_proj_bias[:embed_dim] if module.in_proj_bias is not None else None
-            b_k = module.in_proj_bias[embed_dim:2 * embed_dim] if module.in_proj_bias is not None else None
+            W_q = module.in_proj_weight[:embed_dim].detach()
+            W_k = module.in_proj_weight[embed_dim:2 * embed_dim].detach()
+            b_q = module.in_proj_bias[:embed_dim].detach() if module.in_proj_bias is not None else None
+            b_k = module.in_proj_bias[embed_dim:2 * embed_dim].detach() if module.in_proj_bias is not None else None
 
+            # F.linear on x (which carries grad from adversarial input) with detached weights
+            # ensures gradients flow back through x to the perturbation
             q = F.linear(x, W_q, b_q)  # [seq_len, B, embed_dim]
             k = F.linear(x, W_k, b_k)
 

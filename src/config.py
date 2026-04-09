@@ -24,7 +24,7 @@ class Phase0Config:
     loss_weights: dict = field(default_factory=lambda: {
         "embedding": 1.0,
         "patch": 0.0,
-        "attention": 0.7,
+        "attention": 0.0,
         "ssim": 0.5,
     })
 
