@@ -12,9 +12,9 @@ class Phase0Config:
     clip_pretrained: str = "openai"
 
     # PGD parameters
-    epsilon: float = 8 / 255        # L-inf constraint (8/255 to meet PSNR>30dB)
-    step_size: float = 1 / 255      # per-step perturbation
-    num_steps: int = 100            # PGD iterations
+    epsilon: float = 12 / 255       # L-inf constraint (increased for stronger disruption)
+    step_size: float = 1.5 / 255    # per-step perturbation
+    num_steps: int = 200            # PGD iterations
     momentum: float = 0.9           # gradient momentum
 
     # input
@@ -25,7 +25,7 @@ class Phase0Config:
         "embedding": 1.0,
         "patch": 0.0,
         "attention": 0.0,
-        "ssim": 0.5,
+        "ssim": 0.2,
     })
 
     # quality thresholds
