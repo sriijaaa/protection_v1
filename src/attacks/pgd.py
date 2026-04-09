@@ -140,7 +140,7 @@ class PGDAttack:
 
         for _ in iterator:
             # === NI-FGSM: compute gradient at Nesterov lookahead point ===
-            lookahead_delta = (delta + adaptive_step * grad_momentum.sign()).detach().requires_grad_(True)
+            lookahead_delta = (delta - adaptive_step * grad_momentum.sign()).detach().requires_grad_(True)
             adv_image = clean_image + lookahead_delta
 
             # optionally apply input diversity (augmentations)
