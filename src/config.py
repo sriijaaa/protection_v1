@@ -20,11 +20,11 @@ class Phase0Config:
     # input
     input_resolution: int = 224     # CLIP ViT-L/14 native resolution
 
-    # loss weights (Phase 0: embedding only)
+    # loss weights
     loss_weights: dict = field(default_factory=lambda: {
         "embedding": 1.0,
         "patch": 0.0,
-        "attention": 0.0,
+        "attention": 0.7,
         "ssim": 0.5,
     })
 

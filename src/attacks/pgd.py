@@ -1,10 +1,10 @@
 """PGD (Projected Gradient Descent) attack with momentum for adversarial image protection."""
 
 import torch
-import torch.nn as nn
 import torch.nn.functional as F
 from tqdm import tqdm
 from typing import Optional, Callable
+from torchvision.transforms.functional import gaussian_blur
 
 from ..models.clip_encoder import CLIPEncoder
 from .losses import CombinedLoss
@@ -72,6 +72,7 @@ class PGDAttack:
         loss_fn: Optional[CombinedLoss] = None,
         input_diversity: Optional[Callable] = None,
         use_texture_mask: bool = True,
+        num_attention_layers: int = 4,
     ):
         self.encoder = encoder
         self.epsilon = epsilon
@@ -82,6 +83,7 @@ class PGDAttack:
         self.input_diversity = input_diversity
         self.device = encoder.device
         self.use_texture_mask = use_texture_mask
+        self.num_attention_layers = num_attention_layers
 
     def attack(
         self,
@@ -116,9 +118,9 @@ class PGDAttack:
             adaptive_step = self.step_size
 
         # initialize perturbation with small random noise
-        delta = torch.zeros_like(clean_image, requires_grad=True)
-        delta.data.uniform_(-self.epsilon * 0.05, self.epsilon * 0.05)
-        delta.data = torch.clamp(clean_image + delta.data, 0, 1) - clean_image
+        delta = torch.zeros_like(clean_image)
+        delta.uniform_(-self.epsilon * 0.05, self.epsilon * 0.05)
+        delta = torch.clamp(clean_image + delta, 0, 1) - clean_image
 
         # momentum buffer
         grad_momentum = torch.zeros_like(clean_image)
@@ -129,11 +131,17 @@ class PGDAttack:
             "loss_components": [],
         }
 
+        # register attention hooks if the loss weight is active
+        use_attention = self.loss_fn.weights.get("attention", 0) > 0
+        if use_attention:
+            self.encoder.hook_attention_layers(self.num_attention_layers)
+
         iterator = tqdm(range(self.num_steps), desc="PGD Attack", disable=not verbose)
 
-        for step in iterator:
-            delta.requires_grad_(True)
-            adv_image = clean_image + delta
+        for _ in iterator:
+            # === NI-FGSM: compute gradient at Nesterov lookahead point ===
+            lookahead_delta = (delta + adaptive_step * grad_momentum.sign()).detach().requires_grad_(True)
+            adv_image = clean_image + lookahead_delta
 
             # optionally apply input diversity (augmentations)
             if self.input_diversity is not None:
@@ -144,37 +152,42 @@ class PGDAttack:
             # forward pass
             adv_embedding = self.encoder.encode_image(adv_input)
 
-            # compute loss with SSIM preservation
+            # collect attention maps captured by hooks (empty list if hooks not active)
+            attention_maps = self.encoder.get_attention_maps() if use_attention else []
+
+            # compute loss with SSIM preservation + attention entropy
             loss, loss_components = self.loss_fn(
                 clean_embedding.detach(),
                 adv_embedding,
                 clean_image=clean_image,
                 adv_image=adv_image,
+                attention_maps=attention_maps,
             )
 
             # backward pass
             loss.backward()
 
             with torch.no_grad():
-                grad = delta.grad.data
+                grad = lookahead_delta.grad.data
 
                 # normalize gradient
                 grad_norm = grad / (grad.abs().mean(dim=[1, 2, 3], keepdim=True) + 1e-12)
 
-                # apply momentum
+                # apply momentum (using gradient from lookahead point)
                 grad_momentum = self.momentum * grad_momentum + grad_norm
 
+                # === TI-PGD: smooth accumulated gradient before sign to gain
+                #     spatial-shift robustness (helps transfer to cropping pipelines)
+                smoothed_momentum = gaussian_blur(grad_momentum, kernel_size=[5, 5], sigma=[1.5, 1.5])
+
                 # signed gradient step with adaptive (texture-aware) step size
-                delta.data = delta.data - adaptive_step * grad_momentum.sign()
+                delta = delta - adaptive_step * smoothed_momentum.sign()
 
                 # project back to adaptive epsilon ball
-                delta.data = torch.clamp(delta.data, -adaptive_epsilon, adaptive_epsilon)
+                delta = torch.clamp(delta, -adaptive_epsilon, adaptive_epsilon)
 
                 # project to valid image range
-                delta.data = torch.clamp(clean_image + delta.data, 0, 1) - clean_image
-
-            # zero gradients
-            delta.grad = None
+                delta = torch.clamp(clean_image + delta, 0, 1) - clean_image
 
             # logging
             cosine_sim = loss_components.get("embedding", loss.item())
@@ -187,13 +200,17 @@ class PGDAttack:
                     "loss": f"{loss.item():.4f}",
                     "cos_sim": f"{cosine_sim:.4f}",
                     "ssim_l": f"{loss_components.get('ssim', 0):.4f}",
+                    "attn_l": f"{loss_components.get('attention', 0):.4f}",
                 })
 
+        if use_attention:
+            self.encoder.remove_hooks()
+
         # final adversarial image
-        adv_image = torch.clamp(clean_image + delta.data, 0, 1)
+        adv_image = torch.clamp(clean_image + delta, 0, 1)
 
         attack_log["final_cosine_sim"] = attack_log["cosine_sims"][-1]
-        attack_log["final_delta_linf"] = delta.data.abs().max().item()
+        attack_log["final_delta_linf"] = delta.abs().max().item()
         attack_log["epsilon"] = self.epsilon
         attack_log["num_steps"] = self.num_steps
 

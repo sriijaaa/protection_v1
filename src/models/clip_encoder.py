@@ -2,6 +2,7 @@
 
 import torch
 import torch.nn as nn
+import torch.nn.functional as F
 import open_clip
 
 
@@ -85,17 +86,37 @@ class CLIPEncoder(nn.Module):
             self._hooks.append(hook)
 
     def _attention_hook_fn(self, module, input, output):
-        """Capture attention weights from multi-head attention."""
-        # open_clip's attention returns (attn_output, attn_weights) when needed
-        # We'll compute attention weights manually from Q, K
-        if isinstance(input, tuple):
-            x = input[0]
-        else:
-            x = input
+        """Compute and capture softmax attention weights from Q, K projections.
 
-        # For open_clip ViT, we can access attention via the module
-        # Store the input for attention computation in the loss function
-        self._attention_maps.append(x)
+        Recomputes attention from the MHA input rather than relying on
+        need_weights=True (which open_clip disables for speed).
+        Produces [B*num_heads, seq_len, seq_len] maps — what AttentionEntropyLoss expects.
+        """
+        try:
+            x = input[0]  # [seq_len, B, embed_dim] — query == key for self-attention
+            seq_len, B = x.shape[0], x.shape[1]
+            embed_dim = module.embed_dim
+            num_heads = module.num_heads
+            head_dim = embed_dim // num_heads
+
+            # packed QKV weight: [3*embed_dim, embed_dim]
+            W_q = module.in_proj_weight[:embed_dim]
+            W_k = module.in_proj_weight[embed_dim:2 * embed_dim]
+            b_q = module.in_proj_bias[:embed_dim] if module.in_proj_bias is not None else None
+            b_k = module.in_proj_bias[embed_dim:2 * embed_dim] if module.in_proj_bias is not None else None
+
+            q = F.linear(x, W_q, b_q)  # [seq_len, B, embed_dim]
+            k = F.linear(x, W_k, b_k)
+
+            # reshape to [B*num_heads, seq_len, head_dim]
+            q = q.view(seq_len, B * num_heads, head_dim).transpose(0, 1)
+            k = k.view(seq_len, B * num_heads, head_dim).transpose(0, 1)
+
+            scale = head_dim ** -0.5
+            attn_weights = torch.softmax(torch.bmm(q, k.transpose(1, 2)) * scale, dim=-1)
+            self._attention_maps.append(attn_weights)
+        except Exception:
+            pass  # never break the forward pass
 
     def get_attention_maps(self) -> list:
         """Return captured attention maps and clear the buffer."""
