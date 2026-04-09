@@ -1,0 +1,107 @@
+[
+  {
+    "image": "img1",
+    "input_path": "images/img1.jpeg",
+    "output_path": "experiments/results/img1_protected.png",
+    "comparison_path": "experiments/results/comparisons/img1_comparison.png",
+    "metrics": {
+      "psnr": 39.76609382740259,
+      "ssim": 0.9719250798225403,
+      "lpips": 0.015134080313146114,
+      "psnr_pass": 1.0,
+      "ssim_pass": true,
+      "lpips_pass": true,
+      "all_pass": true
+    },
+    "cosine_similarity": -0.505588948726654,
+    "embedding_distance": 1.505588948726654,
+    "attack_time_seconds": 5.461907863616943,
+    "final_loss": -0.50028395652771,
+    "num_steps": 100,
+    "epsilon": 0.03137254901960784
+  },
+  {
+    "image": "img2",
+    "input_path": "images/img2.jpeg",
+    "output_path": "experiments/results/img2_protected.png",
+    "comparison_path": "experiments/results/comparisons/img2_comparison.png",
+    "metrics": {
+      "psnr": 41.96017070158988,
+      "ssim": 0.9337998032569885,
+      "lpips": 0.006307028699666262,
+      "psnr_pass": 1.0,
+      "ssim_pass": false,
+      "lpips_pass": true,
+      "all_pass": false
+    },
+    "cosine_similarity": -0.567394495010376,
+    "embedding_distance": 1.567394495010376,
+    "attack_time_seconds": 5.216653108596802,
+    "final_loss": -0.5229971408843994,
+    "num_steps": 100,
+    "epsilon": 0.03137254901960784
+  },
+  {
+    "image": "img4",
+    "input_path": "images/img4.jpeg",
+    "output_path": "experiments/results/img4_protected.png",
+    "comparison_path": "experiments/results/comparisons/img4_comparison.png",
+    "metrics": {
+      "psnr": 39.33989639764193,
+      "ssim": 0.9813060164451599,
+      "lpips": 0.004215672612190247,
+      "psnr_pass": 1.0,
+      "ssim_pass": true,
+      "lpips_pass": true,
+      "all_pass": true
+    },
+    "cosine_similarity": -0.5252732634544373,
+    "embedding_distance": 1.5252732634544373,
+    "attack_time_seconds": 5.248809099197388,
+    "final_loss": -0.5192434787750244,
+    "num_steps": 100,
+    "epsilon": 0.03137254901960784
+  },
+  {
+    "image": "real2",
+    "input_path": "images/real2.jpeg",
+    "output_path": "experiments/results/real2_protected.png",
+    "comparison_path": "experiments/results/comparisons/real2_comparison.png",
+    "metrics": {
+      "psnr": 39.42341159139191,
+      "ssim": 0.9795770645141602,
+      "lpips": 0.006938374135643244,
+      "psnr_pass": 1.0,
+      "ssim_pass": true,
+      "lpips_pass": true,
+      "all_pass": true
+    },
+    "cosine_similarity": -0.49588268995285034,
+    "embedding_distance": 1.4958826899528503,
+    "attack_time_seconds": 5.267934799194336,
+    "final_loss": -0.5167227983474731,
+    "num_steps": 100,
+    "epsilon": 0.03137254901960784
+  },
+  {
+    "image": "removal",
+    "input_path": "images/removal.jpeg",
+    "output_path": "experiments/results/removal_protected.png",
+    "comparison_path": "experiments/results/comparisons/removal_comparison.png",
+    "metrics": {
+      "psnr": 39.604299451351615,
+      "ssim": 0.976095974445343,
+      "lpips": 0.010246746242046356,
+      "psnr_pass": 1.0,
+      "ssim_pass": true,
+      "lpips_pass": true,
+      "all_pass": true
+    },
+    "cosine_similarity": -0.5711522698402405,
+    "embedding_distance": 1.5711522698402405,
+    "attack_time_seconds": 5.28275203704834,
+    "final_loss": -0.547133207321167,
+    "num_steps": 100,
+    "epsilon": 0.03137254901960784
+  }
+]
