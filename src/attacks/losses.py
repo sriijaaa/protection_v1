@@ -27,7 +27,7 @@ class EmbeddingDistanceLoss(nn.Module):
             Scalar loss (negative cosine similarity, so minimizing = maximizing distance)
         """
         cosine_sim = F.cosine_similarity(clean_embedding, adv_embedding, dim=-1)
-        return cosine_sim.mean()  # minimize this → embeddings move apart
+        return -cosine_sim.mean()  # negative so that minimizing → maximizes distance
 
 
 class PatchDisruptionLoss(nn.Module):
